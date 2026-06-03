@@ -1,0 +1,61 @@
+name: Fork Release
+
+# Builds an unsigned .tar.gz package and publishes it as a GitHub Release.
+# Specific to the Gecka-Apps fork: no App Store signing/publishing.
+# Triggered automatically when a v* tag is pushed (e.g. v2.4.0), or manually.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 2.4.0)'
+        required: true
+
+env:
+  APP_ID: dicomviewer
+
+jobs:
+  release:
+    name: Build and release tarball
+    # Only run on the fork, never if this workflow ends up upstream.
+    if: github.repository == 'Gecka-Apps/dicomviewer'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ github.event.inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: ${{ env.APP_ID }}
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build package
+        working-directory: ${{ env.APP_ID }}
+        run: make appstore version=${{ steps.version.outputs.version }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: /tmp/build/${{ env.APP_ID }}-${{ steps.version.outputs.version }}.tar.gz
