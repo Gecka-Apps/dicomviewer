@@ -49,7 +49,10 @@ jobs:
 
       - name: Build package
         working-directory: ${{ env.APP_ID }}
-        run: make appstore version=${{ steps.version.outputs.version }}
+        run: |
+          make appstore version=${{ steps.version.outputs.version }}
+          # Stable-named copy so /releases/latest/download/dicomviewer.tar.gz always resolves
+          cp /tmp/build/${{ env.APP_ID }}-${{ steps.version.outputs.version }}.tar.gz /tmp/build/${{ env.APP_ID }}.tar.gz
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -58,4 +61,6 @@ jobs:
           name: ${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
-          files: /tmp/build/${{ env.APP_ID }}-${{ steps.version.outputs.version }}.tar.gz
+          files: |
+            /tmp/build/${{ env.APP_ID }}-${{ steps.version.outputs.version }}.tar.gz
+            /tmp/build/${{ env.APP_ID }}.tar.gz
